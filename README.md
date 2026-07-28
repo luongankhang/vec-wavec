@@ -1,5 +1,7 @@
 # WaveC Dynamic Array (Vector) Library - ECS Optimized (Ultimate 2026)
 
+## 🌐 Select Language: [English](#english-version) | [中文](#中文版本) | [Tiếng Việt](#phiên-bản-tiếng-việt)
+
 ---
 
 ## 🇬🇧 English Version
@@ -124,3 +126,5 @@ Các ví dụ nằm trong thư mục `examples/`:
 - Hệ thống xây dựng dựa trên Docker
 
 ---
+
+[Back to Top](#wavec-dynamic-array-vector-library---ecs-optimized-ultimate-2026)
