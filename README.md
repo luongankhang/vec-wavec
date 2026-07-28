@@ -1,6 +1,8 @@
 # WaveC Dynamic Array (Vector) Library - ECS Optimized (Ultimate 2026)
 
-## English
+---
+
+## 🇬🇧 English Version
 
 ### Overview
 This library provides a generic dynamic array (vector) implementation optimized for Entity-Component-System (ECS) architectures, written in Wave 0.1.9-pre-beta (running on Fedora Linux 43 Container Image with LLVM 21.1.8 backend). It serves as a supporting code library for Raylib development workflows, though not an official release or documented version.
@@ -41,7 +43,7 @@ Examples are located in the `examples/` directory:
 
 ---
 
-## 中文
+## 🇨🇳 中文版本
 
 ### 概述
 此库提供了针对实体-组件-系统（ECS）架构优化的泛型动态数组（向量）实现，使用 Wave 0.1.9-pre-beta 编写（在 Fedora Linux 43 容器镜像上运行，LLVM 21.1.8 后端）。它作为 Raylib 开发工作流程的支持代码库，但不是正式发布版本或文档化版本。
@@ -82,7 +84,7 @@ Examples are located in the `examples/` directory:
 
 ---
 
-## Tiếng Việt
+## 🇻🇳 Phiên Bản Tiếng Việt
 
 ### Tổng Quan
 Thư viện này cung cấp triển khai mảng động (vector) tổng quát được tối ưu hóa cho kiến trúc Entity-Component-System (ECS), viết bằng Wave 0.1.9-pre-beta (chạy trên Fedora Linux 43 Container Image với backend LLVM 21.1.8). Thư viện đóng vai trò là thư viện mã nguồn hỗ trợ trong quá trình phát triển với Raylib, mặc dù đây không phải là phiên bản chính thức hay được tài liệu hóa đầy đủ.
@@ -120,3 +122,5 @@ Các ví dụ nằm trong thư mục `examples/`:
 - Fedora Linux 43 (Container Image)
 - Backend LLVM 21.1.8
 - Hệ thống xây dựng dựa trên Docker
+
+---
