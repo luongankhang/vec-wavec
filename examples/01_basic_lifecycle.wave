@@ -1,0 +1,81 @@
+// ==============================================================================
+// 01. BASIC LIFECYCLE & ACCESSORS
+// ==============================================================================
+// Objective: Test creation, pushing, accessing, and freeing a vector.
+// English: Test creation, pushing, accessing, and freeing a vector.
+// ==============================================================================
+
+import("../vec");
+
+struct Point {
+    x: i32;
+    y: i32;
+}
+
+fun main() {
+    println("=== 01. BASIC LIFECYCLE & ACCESSORS ===");
+    
+    // 1. Create vector on stack (elem_size = 8 bytes for 2 x i32)
+    var v_stack: Vec<Point> = vec_new<Point>(8);
+    
+    var p1: Point = Point { x: 10, y: 20 };
+    var p2: Point = Point { x: 30, y: 40 };
+    
+    // 2. Add elements (pass address using &)
+    vec_push<Point>(&v_stack, &p1);
+    vec_push<Point>(&v_stack, &p2);
+    
+    // 3. Access information
+    var len: i64 = vec_len<Point>(&v_stack);       // = 2
+    var cap: i64 = vec_capacity<Point>(&v_stack);  // = 4 (auto-increases)
+    var is_empty: bool = vec_is_empty<Point>(&v_stack); // = false
+    
+    // Print results with expected values
+    println("Length: {} (Expected: 2)", len);
+    println("Capacity: {} (Expected: 4)", cap);
+    println("Is empty: {} (Expected: false)", is_empty);
+    
+    // 4. Access elements
+    var first: ptr<Point> = vec_first<Point>(&v_stack);
+    var last: ptr<Point> = vec_last<Point>(&v_stack);
+    var get_one: ptr<Point> = vec_get<Point>(&v_stack, 1); // Get index 1
+    
+    if (first != null) {
+        println("First element - x: {}, y: {} (Expected: x:10, y:20)", first.x, first.y);
+    }
+    if (last != null) {
+        println("Last element - x: {}, y: {} (Expected: x:30, y:40)", last.x, last.y);
+    }
+    if (get_one != null) {
+        println("Element at index 1 - x: {}, y: {} (Expected: x:30, y:40)", get_one.x, get_one.y);
+    }
+    
+    // Free internal data buffer of stack vector (if needed)
+    vec_free<Point>(&v_stack);
+
+    // --------------------------------------------------------------------------
+    // 5. Heap Allocation Example (More common in practice)
+    println("\n--- Heap Allocation Example ---");
+    var v_heap: ptr<Vec<Point>> = vec_new_heap<Point>(8);
+    vec_push<Point>(v_heap, &p1);
+    vec_push<Point>(v_heap, &p2);
+    
+    var heap_len: i64 = vec_len<Point>(v_heap);
+    var heap_cap: i64 = vec_capacity<Point>(v_heap);
+    println("Heap vector length: {} (Expected: 2)", heap_len);
+    println("Heap vector capacity: {} (Expected: 4)", heap_cap);
+    
+    var heap_first: ptr<Point> = vec_first<Point>(v_heap);
+    var heap_last: ptr<Point> = vec_last<Point>(v_heap);
+    if (heap_first != null) {
+        println("Heap first element - x: {}, y: {} (Expected: x:10, y:20)", heap_first.x, heap_first.y);
+    }
+    if (heap_last != null) {
+        println("Heap last element - x: {}, y: {} (Expected: x:30, y:40)", heap_last.x, heap_last.y);
+    }
+    
+    // 6. Complete destruction: free data + vector struct + set pointer to null
+    vec_destroy<Point>(&v_heap);
+    
+    println("=== END 01. BASIC LIFECYCLE & ACCESSORS ===\n");
+}

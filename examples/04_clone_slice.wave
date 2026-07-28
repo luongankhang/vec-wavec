@@ -1,0 +1,109 @@
+// ==============================================================================
+// 04. CLONE & SLICE OPERATIONS
+// ==============================================================================
+// Objective: Test deep copy and slice extraction.
+// English: Test deep copy and slice extraction.
+// ==============================================================================
+
+import("../vec");
+
+fun main() {
+    println("=== 04. CLONE & SLICE OPERATIONS ===");
+    
+    var v: ptr<Vec<i32>> = vec_new_heap<i32>(4);
+    var n1: i32 = 1; var n2: i32 = 2; var n3: i32 = 3; var n4: i32 = 4;
+    vec_push<i32>(v, &n1);
+    vec_push<i32>(v, &n2);
+    vec_push<i32>(v, &n3);
+    vec_push<i32>(v, &n4);
+    // v = [1, 2, 3, 4]
+    
+    println("Original vector v:");
+    for (var i: i64 = 0; i < vec_len<i32>(v); i = i + 1) {
+        var elem: ptr<i32> = vec_get<i32>(v, i);
+        if (elem != null) {
+            var expected_val: i32 = 0;
+            if (i == 0) { expected_val = 1; }
+            else if (i == 1) { expected_val = 2; }
+            else if (i == 2) { expected_val = 3; }
+            else if (i == 3) { expected_val = 4; }
+            println("  Index {}: {} (Expected: {})", i, deref elem, expected_val);
+        }
+    }
+    println("Length: {}, Capacity: {}", vec_len<i32>(v), vec_capacity<i32>(v));
+    
+    // 1. vec_clone: Create a fully independent copy (allocate new memory)
+    var v_clone: Vec<i32> = vec_clone<i32>(v);
+    // v_clone has separate data, len, cap, unaffected if v changes
+    
+    println("\nAfter vec_clone:");
+    println("Clone length: {}, Clone capacity: {}", vec_len<i32>(&v_clone), vec_capacity<i32>(&v_clone));
+    println("Clone vector v_clone:");
+    for (var i: i64 = 0; i < vec_len<i32>(&v_clone); i = i + 1) {
+        var elem: ptr<i32> = vec_get<i32>(&v_clone, i);
+        if (elem != null) {
+            var expected_val: i32 = 0;
+            if (i == 0) { expected_val = 1; }
+            else if (i == 1) { expected_val = 2; }
+            else if (i == 2) { expected_val = 3; }
+            else if (i == 3) { expected_val = 4; }
+            println("  Index {}: {} (Expected: {})", i, deref elem, expected_val);
+        }
+    }
+    
+    // Modify original vector to prove independence
+    var n5: i32 = 999;
+    vec_push<i32>(v, &n5);
+    println("\nAfter modifying original vector (added 999):");
+    println("Original vector v (after modification):");
+    for (var i: i64 = 0; i < vec_len<i32>(v); i = i + 1) {
+        var elem: ptr<i32> = vec_get<i32>(v, i);
+        if (elem != null) {
+            var expected_val: i32 = 0;
+            if (i == 0) { expected_val = 1; }
+            else if (i == 1) { expected_val = 2; }
+            else if (i == 2) { expected_val = 3; }
+            else if (i == 3) { expected_val = 4; }
+            else if (i == 4) { expected_val = 999; }
+            println("  Index {}: {} (Expected: {})", i, deref elem, expected_val);
+        }
+    }
+    println("Clone vector v_clone (should be unchanged):");
+    for (var i: i64 = 0; i < vec_len<i32>(&v_clone); i = i + 1) {
+        var elem: ptr<i32> = vec_get<i32>(&v_clone, i);
+        if (elem != null) {
+            var expected_val: i32 = 0;
+            if (i == 0) { expected_val = 1; }
+            else if (i == 1) { expected_val = 2; }
+            else if (i == 2) { expected_val = 3; }
+            else if (i == 3) { expected_val = 4; }
+            println("  Index {}: {} (Expected: {})", i, deref elem, expected_val);
+        }
+    }
+    
+    // 2. vec_slice: Extract range [1, 3) -> index 1, 2 (values 2, 3)
+    var v_slice: Vec<i32> = vec_slice<i32>(v, 1, 3);
+    // v_slice = [2, 3]
+    println("\nAfter vec_slice(1, 3) (extracting elements at indices 1, 2 from modified original [1, 2, 3, 4, 999]):");
+    println("Slice length: {}, Slice capacity: {}", vec_len<i32>(&v_slice), vec_capacity<i32>(&v_slice));
+    println("Sliced vector v_slice:");
+    for (var i: i64 = 0; i < vec_len<i32>(&v_slice); i = i + 1) {
+        var elem: ptr<i32> = vec_get<i32>(&v_slice, i);
+        if (elem != null) {
+            var expected_val: i32 = 0;
+            if (i == 0) { expected_val = 2; }  // From index 1 of original
+            else if (i == 1) { expected_val = 3; }  // From index 2 of original
+            println("  Index {}: {} (Expected: {})", i, deref elem, expected_val);
+        }
+    }
+    
+    // 3. Clean up memory for vectors returned as structs (Stack)
+    // We use & to get temporary pointer to pass to vec_free
+    vec_free<i32>(&v_clone);
+    vec_free<i32>(&v_slice);
+    
+    // 4. Clean up original vector (Heap)
+    vec_destroy<i32>(&v);
+    
+    println("=== END 04. CLONE & SLICE OPERATIONS ===\n");
+}

@@ -1,0 +1,401 @@
+// ==============================================================================
+// DYNAMIC ARRAY LIBRARY (VECTOR) FOR WAVE - ECS OPTIMIZED (ULTIMATE 2026)
+// ==============================================================================
+// English: This library provides a generic dynamic array (vector) implementation
+//          optimized for Entity-Component-System (ECS) architectures.
+// Chinese: 本库提供通用动态数组（向量）实现，专为实体组件系统（ECS）架构优化。
+// Vietnamese: Thư viện này cung cấp mảng động (vector) tổng quát, được tối ưu cho
+//             kiến trúc Entity-Component-System (ECS).
+// ==============================================================================
+
+// ==========================================
+// 1. MEMORY & UTILITY C FUNCTIONS
+// ==========================================
+// English: Standard C library functions for heap memory management.
+// Chinese: 标准C库堆内存管理函数。
+// Vietnamese: Các hàm thư viện C chuẩn để quản lý bộ nhớ heap.
+extern(c) {
+    fun malloc(size: i64) -> ptr<u8>;
+    fun realloc(ptr: ptr<u8>, size: i64) -> ptr<u8>;
+    fun free(ptr: ptr<u8>);
+    fun memcpy(dest: ptr<u8>, src: ptr<u8>, n: i64) -> ptr<u8>;
+    fun memmove(dest: ptr<u8>, src: ptr<u8>, n: i64) -> ptr<u8>;
+    fun memcmp(s1: ptr<u8>, s2: ptr<u8>, n: i64) -> i32;
+}
+
+// ==========================================
+// 2. GENERIC VECTOR STRUCTURE
+// ==========================================
+// English: Generic vector structure storing pointer to data, length, capacity,
+//          and element size in bytes.
+// Chinese: 通用向量结构，存储数据指针、长度、容量和元素字节大小。
+// Vietnamese: Cấu trúc vector tổng quát lưu con trỏ dữ liệu, độ dài, sức chứa,
+//             và kích thước phần tử tính bằng byte.
+struct Vec<T> {
+    data: ptr<T>;
+    len: i64;
+    cap: i64;
+    elem_size: i64;
+}
+
+// ==========================================
+// 3. LIFECYCLE MANAGEMENT
+// ==========================================
+// English: Create a new empty vector on the stack.
+// Chinese: 在栈上创建一个新的空向量。
+// Vietnamese: Tạo vector rỗng mới trên stack.
+fun vec_new<T>(elem_size: i64) -> Vec<T> {
+    var v: Vec<T>;
+    v.data = null; v.len = 0; v.cap = 0; v.elem_size = elem_size;
+    return v;
+}
+
+// English: Allocate a new vector on the heap and return a pointer.
+// Chinese: 在堆上分配新向量并返回指针。
+// Vietnamese: Cấp phát vector mới trên heap và trả về con trỏ.
+fun vec_new_heap<T>(elem_size: i64) -> ptr<Vec<T>> {
+    var v: ptr<Vec<T>> = malloc(32) as ptr<Vec<T>>; 
+    if (v == null) { return null; } 
+    v.data = null; v.len = 0; v.cap = 0; v.elem_size = elem_size;
+    return v;
+}
+
+// English: Free the internal data buffer of the vector (does not free the vector struct itself).
+// Chinese: 释放向量的内部数据缓冲区（不释放向量结构本身）。
+// Vietnamese: Giải phóng vùng đệm dữ liệu bên trong của vector (không giải phóng cấu trúc vector).
+fun vec_free<T>(v: ptr<Vec<T>>) -> i32 {
+    if (v == null) { return 0; } 
+    if (v.data != null) { free(v.data as ptr<u8>); v.data = null; }
+    v.len = 0; v.cap = 0;
+    return 0;
+}
+
+// English: Completely destroy the vector: free data and free the vector struct itself,
+//          then set the outer pointer to null.
+// Chinese: 完全销毁向量：释放数据和向量结构本身，然后将外部指针置空。
+// Vietnamese: Hủy hoàn toàn vector: giải phóng dữ liệu và cấu trúc vector, sau đó
+//             đặt con trỏ bên ngoài thành null.
+fun vec_destroy<T>(v: ptr<ptr<Vec<T>>>) -> i32 {
+    if (v == null) { return 0; }
+    var inner_v: ptr<Vec<T>> = deref v;
+    if (inner_v == null) { return 0; } 
+    if (inner_v.data != null) { free(inner_v.data as ptr<u8>); inner_v.data = null; }
+    free(inner_v as ptr<u8>);
+    deref v = null; 
+    return 0;
+}
+
+// ==========================================
+// 4. ACCESSORS & INFORMATION
+// ==========================================
+// English: Get the number of elements.
+// Chinese: 获取元素数量。
+// Vietnamese: Lấy số lượng phần tử.
+fun vec_len<T>(v: ptr<Vec<T>>) -> i64 { if (v == null) { return 0; } return v.len; }
+
+// English: Get the current capacity.
+// Chinese: 获取当前容量。
+// Vietnamese: Lấy sức chứa hiện tại.
+fun vec_capacity<T>(v: ptr<Vec<T>>) -> i64 { if (v == null) { return 0; } return v.cap; }
+
+// English: Check if the vector is empty.
+// Chinese: 检查向量是否为空。
+// Vietnamese: Kiểm tra vector có rỗng không.
+fun vec_is_empty<T>(v: ptr<Vec<T>>) -> bool { if (v == null) { return true; } return v.len == 0; }
+
+// English: Get a pointer to the element at the given index (bounds checked).
+// Chinese: 获取给定索引处元素的指针（进行边界检查）。
+// Vietnamese: Lấy con trỏ đến phần tử tại chỉ số đã cho (kiểm tra biên).
+fun vec_get<T>(v: ptr<Vec<T>>, index: i64) -> ptr<T> {
+    if (v == null || index < 0 || index >= v.len) { return null; }
+    return ((v.data as ptr<u8>) + (index * v.elem_size)) as ptr<T>;
+}
+
+// English: Get a pointer to the first element.
+// Chinese: 获取第一个元素的指针。
+// Vietnamese: Lấy con trỏ đến phần tử đầu tiên.
+fun vec_first<T>(v: ptr<Vec<T>>) -> ptr<T> { return vec_get<T>(v, 0); }
+
+// English: Get a pointer to the last element.
+// Chinese: 获取最后一个元素的指针。
+// Vietnamese: Lấy con trỏ đến phần tử cuối cùng.
+fun vec_last<T>(v: ptr<Vec<T>>) -> ptr<T> {
+    if (v == null || v.len == 0) { return null; }
+    return vec_get<T>(v, v.len - 1);
+}
+
+// ==========================================
+// 5. BASIC MUTATION & BATCH OPERATIONS
+// ==========================================
+// English: Push a single element onto the end of the vector (realloc if needed).
+// Chinese: 在向量末尾推入一个元素（必要时重新分配）。
+// Vietnamese: Thêm một phần tử vào cuối vector (cấp phát lại nếu cần).
+fun vec_push<T>(v: ptr<Vec<T>>, item: ptr<T>) -> i32 {
+    if (v == null) { return -1; } 
+    if (v.len >= v.cap) {
+        var new_cap: i64 = 4;
+        if (v.cap > 0) { new_cap = v.cap * 2; }
+        v.data = realloc(v.data as ptr<u8>, new_cap * v.elem_size) as ptr<T>;
+        v.cap = new_cap;
+    }
+    memcpy((v.data as ptr<u8>) + (v.len * v.elem_size), item as ptr<u8>, v.elem_size);
+    v.len = v.len + 1;
+    return 0;
+}
+
+// English: Extend the vector by appending a block of elements.
+// Chinese: 通过追加一组元素来扩展向量。
+// Vietnamese: Mở rộng vector bằng cách thêm một khối phần tử.
+fun vec_extend<T>(v: ptr<Vec<T>>, items: ptr<T>, count: i64) -> i32 {
+    if (v == null || items == null || count <= 0) { return -1; }
+    let new_len: i64 = v.len + count;
+    if (new_len > v.cap) {
+        var new_cap: i64 = v.cap * 2;
+        while (new_cap < new_len) { new_cap = new_cap * 2; }
+        v.data = realloc(v.data as ptr<u8>, new_cap * v.elem_size) as ptr<T>;
+        v.cap = new_cap;
+    }
+    let dest: ptr<u8> = (v.data as ptr<u8>) + (v.len * v.elem_size);
+    memcpy(dest, items as ptr<u8>, count * v.elem_size);
+    v.len = new_len;
+    return 0;
+}
+
+// English: Remove the last element and copy it to the output pointer.
+// Chinese: 移除最后一个元素并将其复制到输出指针。
+// Vietnamese: Xóa phần tử cuối cùng và sao chép vào con trỏ đầu ra.
+fun vec_pop<T>(v: ptr<Vec<T>>, out_item: ptr<T>) -> bool {
+    if (v == null || v.len == 0) { return false; }
+    let last_idx: i64 = v.len - 1;
+    memcpy(out_item as ptr<u8>, (v.data as ptr<u8>) + (last_idx * v.elem_size), v.elem_size);
+    v.len = last_idx;
+    return true;
+}
+
+// English: Clear all elements (logical length = 0, capacity unchanged).
+// Chinese: 清空所有元素（逻辑长度置零，容量不变）。
+// Vietnamese: Xóa tất cả phần tử (độ dài logic = 0, sức chứa không đổi).
+fun vec_clear<T>(v: ptr<Vec<T>>) -> i32 { if (v == null) { return 0; } v.len = 0; return 0; }
+
+// English: Reserve memory for at least new_cap elements.
+// Chinese: 至少为 new_cap 个元素预留内存。
+// Vietnamese: Dành trước bộ nhớ cho ít nhất new_cap phần tử.
+fun vec_reserve<T>(v: ptr<Vec<T>>, new_cap: i64) -> i32 {
+    if (v == null || new_cap <= v.cap) { return 0; }
+    v.data = realloc(v.data as ptr<u8>, new_cap * v.elem_size) as ptr<T>;
+    v.cap = new_cap;
+    return 0;
+}
+
+// English: Shrink capacity to exactly match the length.
+// Chinese: 将容量收缩至恰好匹配长度。
+// Vietnamese: Thu nhỏ sức chứa để khớp chính xác với độ dài.
+fun vec_shrink_to_fit<T>(v: ptr<Vec<T>>) -> i32 {
+    if (v == null) { return 0; }
+    if (v.len == 0) {
+        if (v.data != null) { free(v.data as ptr<u8>); v.data = null; }
+        v.cap = 0; return 0;
+    }
+    if (v.len < v.cap) {
+        v.data = realloc(v.data as ptr<u8>, v.len * v.elem_size) as ptr<T>;
+        v.cap = v.len;
+    }
+    return 0;
+}
+
+// ==========================================
+// 6. REMOVAL & INSERTION OPERATIONS
+// ==========================================
+// English: Remove the element at index by swapping with the last (O(1), order not preserved).
+// Chinese: 通过与最后一个元素交换来移除索引处的元素（O(1)，顺序不保留）。
+// Vietnamese: Xóa phần tử tại chỉ số bằng cách hoán đổi với phần tử cuối (O(1), không giữ thứ tự).
+fun vec_remove_swap<T>(v: ptr<Vec<T>>, index: i64) -> bool {
+    if (v == null || index < 0 || index >= v.len) { return false; }
+    let last_idx: i64 = v.len - 1;
+    if (index != last_idx) {
+        memcpy((v.data as ptr<u8>) + (index * v.elem_size), (v.data as ptr<u8>) + (last_idx * v.elem_size), v.elem_size);
+    }
+    v.len = last_idx;
+    return true;
+}
+
+// English: Remove the element at index and shift subsequent elements (O(N), preserves order).
+// Chinese: 移除索引处的元素并平移后续元素（O(N)，保留顺序）。
+// Vietnamese: Xóa phần tử tại chỉ số và dịch các phần tử tiếp theo (O(N), giữ thứ tự).
+fun vec_remove<T>(v: ptr<Vec<T>>, index: i64) -> bool {
+    if (v == null || index < 0 || index >= v.len) { return false; }
+    let last_idx: i64 = v.len - 1;
+    if (index != last_idx) {
+        let bytes_to_move: i64 = (last_idx - index) * v.elem_size;
+        memmove((v.data as ptr<u8>) + (index * v.elem_size), (v.data as ptr<u8>) + ((index + 1) * v.elem_size), bytes_to_move); 
+    }
+    v.len = last_idx;
+    return true;
+}
+
+// English: Insert an element at the given index (shift right, O(N)).
+// Chinese: 在给定索引处插入元素（右移，O(N)）。
+// Vietnamese: Chèn một phần tử tại chỉ số đã cho (dịch phải, O(N)).
+fun vec_insert<T>(v: ptr<Vec<T>>, index: i64, item: ptr<T>) -> i32 {
+    if (v == null || index < 0 || index > v.len) { return -1; }
+    if (v.len >= v.cap) {
+        var new_cap: i64 = 4;
+        if (v.cap > 0) { new_cap = v.cap * 2; }
+        v.data = realloc(v.data as ptr<u8>, new_cap * v.elem_size) as ptr<T>;
+        v.cap = new_cap;
+    }
+    if (index < v.len) {
+        let bytes_to_move: i64 = (v.len - index) * v.elem_size;
+        memmove((v.data as ptr<u8>) + ((index + 1) * v.elem_size), (v.data as ptr<u8>) + (index * v.elem_size), bytes_to_move);
+    }
+    memcpy((v.data as ptr<u8>) + (index * v.elem_size), item as ptr<u8>, v.elem_size);
+    v.len = v.len + 1;
+    return 0;
+}
+
+// ==========================================
+// 7. RANGE OPERATIONS & 2026 BEST CHOICE UTILITIES
+// ==========================================
+
+// A. Remove a range [start, end) - preserves order (O(N)).
+// English: Remove elements in [start, end) and shift left.
+// Chinese: 移除 [start, end) 范围内的元素并左移。
+// Vietnamese: Xóa các phần tử trong [start, end) và dịch trái.
+fun vec_remove_range<T>(v: ptr<Vec<T>>, start: i64, end: i64) -> i64 {
+    if (v == null || start < 0 || end > v.len || start >= end) { return 0; }
+    let count: i64 = end - start;
+    let last_idx: i64 = v.len - 1;
+    if (end <= last_idx) {
+        let bytes_to_move: i64 = (v.len - end) * v.elem_size;
+        memmove((v.data as ptr<u8>) + (start * v.elem_size), (v.data as ptr<u8>) + (end * v.elem_size), bytes_to_move);
+    }
+    v.len = v.len - count;
+    return count;
+}
+
+// B. Remove a range [start, end) - does NOT preserve order (O(K)). BEST CHOICE FOR ECS!
+// English: Fast removal by swapping with tail elements; order not preserved.
+// Chinese: 通过与尾部元素交换快速删除；顺序不保留。
+// Vietnamese: Xóa nhanh bằng cách hoán đổi với phần tử cuối; không giữ thứ tự.
+fun vec_remove_range_swap<T>(v: ptr<Vec<T>>, start: i64, end: i64) -> i64 {
+    if (v == null || start < 0 || end > v.len || start >= end) { return 0; }
+    let count: i64 = end - start;
+    let remaining: i64 = v.len - end;
+    
+    var copy_count: i64 = count;
+    if (remaining < count) {
+        copy_count = remaining;
+    }
+    
+    if (copy_count > 0) {
+        let src: ptr<u8> = (v.data as ptr<u8>) + ((v.len - copy_count) * v.elem_size);
+        let dest: ptr<u8> = (v.data as ptr<u8>) + (start * v.elem_size);
+        memcpy(dest, src, copy_count * v.elem_size);
+    }
+    v.len = v.len - count;
+    return count;
+}
+
+// C. Dedup: Remove consecutive duplicate elements.
+// English: Remove adjacent duplicates (in-place, stable).
+// Chinese: 移除相邻重复元素（原地，稳定）。
+// Vietnamese: Xóa các phần tử trùng lặp liền kề (tại chỗ, ổn định).
+fun vec_dedup<T>(v: ptr<Vec<T>>) -> i64 {
+    if (v == null || v.len <= 1) { return 0; }
+    var write_idx: i64 = 1;
+    var read_idx: i64 = 1;
+    while (read_idx < v.len) {
+        let curr_ptr: ptr<u8> = (v.data as ptr<u8>) + (read_idx * v.elem_size);
+        let prev_ptr: ptr<u8> = (v.data as ptr<u8>) + ((write_idx - 1) * v.elem_size);
+        if (memcmp(curr_ptr, prev_ptr, v.elem_size) != 0) {
+            if (write_idx != read_idx) {
+                memcpy((v.data as ptr<u8>) + (write_idx * v.elem_size), curr_ptr, v.elem_size);
+            }
+            write_idx = write_idx + 1;
+        }
+        read_idx = read_idx + 1;
+    }
+    let removed_count: i64 = v.len - write_idx;
+    v.len = write_idx;
+    return removed_count;
+}
+
+// D. Swap At: Swap any two elements in O(1).
+// English: Swap the elements at indices i and j.
+// Chinese: 交换索引 i 和 j 处的元素。
+// Vietnamese: Hoán đổi các phần tử tại chỉ số i và j.
+fun vec_swap_at<T>(v: ptr<Vec<T>>, i: i64, j: i64) -> bool {
+    if (v == null || i < 0 || i >= v.len || j < 0 || j >= v.len || i == j) { return false; }
+    var temp: ptr<u8> = malloc(v.elem_size);
+    if (temp == null) { return false; }
+    
+    let ptr_i: ptr<u8> = (v.data as ptr<u8>) + (i * v.elem_size);
+    let ptr_j: ptr<u8> = (v.data as ptr<u8>) + (j * v.elem_size);
+    
+    memcpy(temp, ptr_i, v.elem_size);
+    memcpy(ptr_i, ptr_j, v.elem_size);
+    memcpy(ptr_j, temp, v.elem_size);
+    
+    free(temp);
+    return true;
+}
+
+// ==========================================
+// 8. CLONE & SLICE (NEW!)
+// ==========================================
+
+// A. vec_clone: Create a complete independent deep copy of the entire vector.
+// English: Deep copy the entire vector (new separate memory).
+// Chinese: 深度复制整个向量（新独立内存）。
+// Vietnamese: Sao chép sâu toàn bộ vector (bộ nhớ mới độc lập).
+fun vec_clone<T>(v: ptr<Vec<T>>) -> Vec<T> {
+    var new_v: Vec<T>;
+    if (v == null) {
+        new_v.data = null; new_v.len = 0; new_v.cap = 0; new_v.elem_size = 0;
+        return new_v;
+    }
+    
+    new_v = vec_new<T>(v.elem_size);
+    if (v.len > 0) {
+        vec_reserve<T>(&new_v, v.len);
+        let dest: ptr<u8> = new_v.data as ptr<u8>;
+        let src: ptr<u8> = v.data as ptr<u8>;
+        let bytes: i64 = v.len * v.elem_size;
+        memcpy(dest, src, bytes);
+        new_v.len = v.len;
+    }
+    return new_v;
+}
+
+// B. vec_slice: Extract a range [start, end) into a new independent vector.
+// English: Extract a slice into a new vector (deep copy of the range).
+// Chinese: 提取切片到新向量（范围的深度复制）。
+// Vietnamese: Trích xuất một lát cắt vào vector mới (sao chép sâu phạm vi).
+fun vec_slice<T>(v: ptr<Vec<T>>, start: i64, end: i64) -> Vec<T> {
+    var new_v: Vec<T>;
+    if (v == null) {
+        new_v.data = null; new_v.len = 0; new_v.cap = 0; new_v.elem_size = 0;
+        return new_v;
+    }
+    
+    var safe_start: i64 = start;
+    var safe_end: i64 = end;
+    if (safe_start < 0) { safe_start = 0; }
+    if (safe_end > v.len) { safe_end = v.len; }
+    if (safe_start >= safe_end) {
+        new_v = vec_new<T>(v.elem_size);
+        return new_v;
+    }
+    
+    let count: i64 = safe_end - safe_start;
+    new_v = vec_new<T>(v.elem_size);
+    vec_reserve<T>(&new_v, count);
+    
+    let src: ptr<u8> = (v.data as ptr<u8>) + (safe_start * v.elem_size);
+    let dest: ptr<u8> = new_v.data as ptr<u8>;
+    let bytes: i64 = count * v.elem_size;
+    memcpy(dest, src, bytes);
+    new_v.len = count;
+    
+    return new_v;
+}

@@ -1,0 +1,60 @@
+# Build artifacts and executables
+*.exe
+*.out
+*.bin
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+
+# Wave-specific build artifacts
+*.wasm
+*.bc
+*.ll
+
+# Temporary build directories
+build/
+dist/
+target/
+tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Log files
+*.log
+logs/
+
+# User-specific files
+.env
+.config/
+
+# Generated files
+.gen/
+.generated/
+
+# Container/Docker
+.dockerenv
+*.dockerignore
+
+# Dependencies/cache
+node_modules/
+vendor/
+.cache/
+
+# Wave-specific temporary files
+*.wvtmp
+*.wave_build/
+*.wave_cache/

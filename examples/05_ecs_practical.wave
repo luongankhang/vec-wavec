@@ -1,0 +1,157 @@
+// ==============================================================================
+// 05. ECS PRACTICAL EXAMPLE (Entity-Component-System)
+// ==============================================================================
+// Objective: Demonstrate how vec.wave is optimized for ECS, especially 
+// fast O(1) component removal without preserving order.
+// English: Demonstrate how vec.wave is optimized for ECS, especially 
+// fast O(1) component removal without preserving order.
+// ==============================================================================
+
+import("../vec");
+
+struct Transform {
+    entity_id: i32;
+    x: f32;
+    y: f32;
+    z: f32;
+}
+
+fun main() {
+    println("=== 05. ECS PRACTICAL EXAMPLE (Entity-Component-System) ===");
+    
+    // 1. Initialize pool containing Transform components (16 bytes = 4 + 4 + 4 + 4)
+    var transform_pool: ptr<Vec<Transform>> = vec_new_heap<Transform>(16);
+    
+    // 2. Add entities to pool
+    var t1: Transform = Transform { entity_id: 1, x: 10.0, y: 20.0, z: 0.0 };
+    var t2: Transform = Transform { entity_id: 2, x: 15.0, y: 25.0, z: 0.0 };
+    var t3: Transform = Transform { entity_id: 3, x: 30.0, y: 35.0, z: 0.0 };
+    var t4: Transform = Transform { entity_id: 4, x: 40.0, y: 45.0, z: 0.0 };
+    
+    vec_push<Transform>(transform_pool, &t1);
+    vec_push<Transform>(transform_pool, &t2);
+    vec_push<Transform>(transform_pool, &t3);
+    vec_push<Transform>(transform_pool, &t4);
+    // Pool: [Entity1, Entity2, Entity3, Entity4]
+    
+    println("Initial ECS transform pool:");
+    for (var i: i64 = 0; i < vec_len<Transform>(transform_pool); i = i + 1) {
+        var comp_ptr: ptr<Transform> = vec_get<Transform>(transform_pool, i);
+        if (comp_ptr != null) {
+            var comp: Transform = deref comp_ptr;
+            var expected_entity_id: i32 = 0;
+            var expected_x: f32 = 0.0;
+            var expected_y: f32 = 0.0;
+            var expected_z: f32 = 0.0;
+            
+            if (i == 0) { 
+                expected_entity_id = 1; 
+                expected_x = 10.0; 
+                expected_y = 20.0; 
+                expected_z = 0.0; 
+            }
+            else if (i == 1) { 
+                expected_entity_id = 2; 
+                expected_x = 15.0; 
+                expected_y = 25.0; 
+                expected_z = 0.0; 
+            }
+            else if (i == 2) { 
+                expected_entity_id = 3; 
+                expected_x = 30.0; 
+                expected_y = 35.0; 
+                expected_z = 0.0; 
+            }
+            else if (i == 3) { 
+                expected_entity_id = 4; 
+                expected_x = 40.0; 
+                expected_y = 45.0; 
+                expected_z = 0.0; 
+            }
+            
+            println("  Index {}: EntityID={}, Position=({}, {}, {}) (Expected: EntityID={}, Position=({}, {}, {}))", 
+                   i, comp.entity_id, comp.x, comp.y, comp.z,
+                   expected_entity_id, expected_x, expected_y, expected_z);
+        }
+    }
+    println("Length: {}, Capacity: {}", vec_len<Transform>(transform_pool), vec_capacity<Transform>(transform_pool));
+    
+    // 3. Entity 2 is destroyed, need to remove from pool.
+    // In ECS, the order of components in the array is typically unimportant.
+    // Instead of using vec_remove (O(N) - must shift all elements after it),
+    // we use vec_remove_swap (O(1)) to swap it with the last element.
+    
+    var target_index: i64 = -1;
+    var i: i64 = 0;
+    var pool_len: i64 = vec_len<Transform>(transform_pool);
+    
+    while (i < pool_len) {
+        var comp_ptr: ptr<Transform> = vec_get<Transform>(transform_pool, i);
+        if (comp_ptr != null) {
+            var comp: Transform = deref comp_ptr;
+            if (comp.entity_id == 2) {
+                target_index = i;
+                break;
+            }
+        }
+        i = i + 1;
+    }
+    
+    println("\nSearching for entity with ID 2...");
+    if (target_index >= 0) {
+        println("Found entity with ID 2 at index: {} (Expected: 1)", target_index);
+        // Fast O(1) removal: Entity4 will be moved to position of Entity2
+        vec_remove_swap<Transform>(transform_pool, target_index);
+        println("Successfully removed entity with ID 2 using vec_remove_swap (O(1))");
+    } else {
+        println("Entity with ID 2 not found!");
+    }
+    
+    // Pool after removal: [Entity1, Entity4, Entity3] (Order changes, but best performance)
+    println("\nECS transform pool after removing entity with ID 2 (using O(1) swap removal):");
+    for (var i: i64 = 0; i < vec_len<Transform>(transform_pool); i = i + 1) {
+        var comp_ptr: ptr<Transform> = vec_get<Transform>(transform_pool, i);
+        if (comp_ptr != null) {
+            var comp: Transform = deref comp_ptr;
+            var expected_entity_id: i32 = 0;
+            var expected_x: f32 = 0.0;
+            var expected_y: f32 = 0.0;
+            var expected_z: f32 = 0.0;
+            
+            if (i == 0) { 
+                expected_entity_id = 1; 
+                expected_x = 10.0; 
+                expected_y = 20.0; 
+                expected_z = 0.0; 
+            }
+            else if (i == 1) { 
+                expected_entity_id = 4;  // Entity 4 moved from end to position 1
+                expected_x = 40.0; 
+                expected_y = 45.0; 
+                expected_z = 0.0; 
+            }
+            else if (i == 2) { 
+                expected_entity_id = 3; 
+                expected_x = 30.0; 
+                expected_y = 35.0; 
+                expected_z = 0.0; 
+            }
+            
+            println("  Index {}: EntityID={}, Position=({}, {}, {}) (Expected: EntityID={}, Position=({}, {}, {}))", 
+                   i, comp.entity_id, comp.x, comp.y, comp.z,
+                   expected_entity_id, expected_x, expected_y, expected_z);
+        }
+    }
+    println("Length: {}, Capacity: {}", vec_len<Transform>(transform_pool), vec_capacity<Transform>(transform_pool));
+    
+    // Show the efficiency benefit
+    println("\nECS Efficiency Note:");
+    println("- Used vec_remove_swap instead of vec_remove: O(1) vs O(N) complexity");
+    println("- Maintains high performance even with frequent entity deletion");
+    println("- Perfect for ECS architectures where component order doesn't matter");
+    
+    // 4. Clean up memory
+    vec_destroy<Transform>(&transform_pool);
+    
+    println("=== END 05. ECS PRACTICAL EXAMPLE ===\n");
+}
